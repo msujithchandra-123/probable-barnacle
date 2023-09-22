@@ -1,0 +1,52 @@
+from sklearn.svm import SVC
+
+from sklearn.metrics import accuracy_score, confusion_matrix
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+# Set the file path of the CSV file
+# csv_file = 'path_to_your_csv_file.csv'
+csv_file = 'TCS.NS.csv'
+# Read the CSV file
+df = pd.read_csv(csv_file)
+# Set the Date column as the index
+df.index = pd.to_datetime(df['Date'])
+df = df.drop(['Date'], axis='columns')
+# Create predictor variables
+df['Open-Close'] = df.Open - df.Close
+df['High-Low'] = df.High - df.Low
+X = df[['Open-Close', 'High-Low']]
+# Target variables ## shifts the values in the 'Close' column one step forward
+y = np.where(df['Close'].shift(-1) > df['Close'], 1, 0)
+split_percentage = 0.8
+split = int(split_percentage * len(df))
+# Train data set
+X_train = X[:split]
+y_train = y[:split]
+# Test data set
+X_test = X[split:]
+y_test = y[split:]
+# Create the SVM Classifier
+classifier = SVC(kernel="linear")
+classifier.fit(X_train, y_train)
+y_pred = classifier.predict(X_test)
+# Evaluate the accuracy of the model
+accuracy = accuracy_score(y_test, y_pred) * 100
+confusion_mat = confusion_matrix(y_test, y_pred)
+# Print the results
+print("Accuracy for SVM is:", accuracy)
+print("Confusion Matrix:")
+print(confusion_mat)
+# Make predictions for the entire dataset
+df['Predicted_Signal'] = classifier.predict(X)
+# Calculate daily returns
+df['Return'] = df.Close.pct_change()
+# Calculate strategy returns
+df['Strategy_Return'] = df.Return * df.Predicted_Signal.shift(1)
+# Calculate cumulative returns
+df['Cum_Ret'] = df['Return'].cumsum()
+# Plot Strategy Cumulative returns
+df['Cum_Strategy'] = df['Strategy_Return'].cumsum()
+plt.plot(df['Cum_Ret'], color='red')
+plt.plot(df['Cum_Strategy'], color='blue')
+plt.show()
